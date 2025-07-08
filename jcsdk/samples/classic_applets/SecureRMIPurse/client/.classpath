@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<classpath>
-	<classpathentry kind="src" path="src"/>
-	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
-	<classpathentry kind="var" path="Sample_Platform_HOME/lib/tools.jar"/>
-	<classpathentry combineaccessrules="false" kind="src" path="/SecureRMIPurse_Applet"/>
-	<classpathentry kind="lib" path="/SecureRMIPurse_Applet/stubs"/>
-	<classpathentry kind="output" path="bin"/>
-</classpath>
