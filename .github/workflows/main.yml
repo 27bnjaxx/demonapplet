@@ -14,9 +14,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Paso 1: Descargar el código de tu repositorio principal (usa el token por defecto)
+      # Paso 1: Clonar tu repositorio principal (privado), proporcionando el token explícitamente
       - name: Clonar el repositorio principal
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }} # <-- CORRECCIÓN FINAL
 
       # Paso 2: Instalar el Kit de Desarrollo de Java (JDK)
       - name: Instalar Java JDK 11
@@ -25,14 +27,14 @@ jobs:
           java-version: '11'
           distribution: 'temurin'
 
-      # Paso 3: Clonar Java Card SDK (Método anónimo y correcto)
+      # Paso 3: Clonar el SDK de Java Card público de forma anónima
       - name: Clonar Java Card SDK
         uses: actions/checkout@v4
         with:
           repository: 'ph4r05/javacard-sdk-305'
           path: 'jcsdk'
           fetch-depth: 1
-          token: '' # <-- LA SOLUCIÓN: Realiza un clon anónimo sin usar el token principal.
+          token: '' # <-- Esto es correcto y se mantiene para evitar conflictos
 
       # Paso 4: Compilar el código Java (con verificación)
       - name: Compilar el código Java
