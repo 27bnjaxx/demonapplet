@@ -10,12 +10,11 @@ jobs:
   build-and-convert:
     runs-on: ubuntu-latest
     
-    # Solicitar permisos para que GITHUB_TOKEN funcione en nuestro propio repositorio.
     permissions:
       contents: read
 
     steps:
-      # Paso 1: Clonar tu repositorio principal.
+      # Paso 1: Clonar tu repositorio principal
       - name: Clonar el repositorio principal
         uses: actions/checkout@v4
 
@@ -26,37 +25,53 @@ jobs:
           java-version: '11'
           distribution: 'temurin'
 
-      # --- LA SOLUCIÓN DEFINITIVA ---
-      # Paso 3: Descargar el SDK como ZIP (evitando git por completo)
-      - name: Descargar y extraer Java Card SDK
+      # --- INICIO DE LA SOLUCIÓN FINAL ---
+      # Paso 3: Descargar y verificar el SDK (Método ultra robusto)
+      - name: Descargar, verificar y extraer Java Card SDK
         run: |
-          # Usamos curl para descargar el archivo ZIP del repositorio
-          curl -L -o jcsdk.zip https://github.com/ph4r05/javacard-sdk-305/archive/refs/heads/master.zip
+          set -e # Detener el script inmediatamente si un comando falla
           
-          # Creamos el directorio de destino
-          mkdir jcsdk
-          
-          # Descomprimimos el ZIP dentro del directorio, eliminando el primer nivel de carpetas del ZIP
-          unzip -q jcsdk.zip -d jcsdk --strip-components=1
-          
-          # Limpiamos el archivo ZIP descargado
-          rm jcsdk.zip
-          echo "SDK de Java Card descargado y extraído en la carpeta 'jcsdk'."
-      # --- FIN DE LA SOLUCIÓN ---
+          URL="https://github.com/ph4r05/javacard-sdk-305/archive/refs/heads/master.zip"
+          ZIP_FILE="jcsdk.zip"
+          DEST_DIR="jcsdk"
 
-      # Paso 4: Compilar el código Java (con verificación)
+          echo "Descargando SDK desde $URL..."
+          # Usamos --fail para que curl falle si el servidor devuelve un error (ej. 404)
+          # Usamos -L para seguir redirecciones
+          curl --fail -L -o "$ZIP_FILE" "$URL"
+
+          echo "Verificando que el archivo descargado sea un ZIP válido..."
+          # 'file' identifica el tipo de archivo. Si no contiene "Zip archive data", fallamos.
+          if ! file "$ZIP_FILE" | grep -q "Zip archive data"; then
+            echo "::error:: El archivo descargado no es un ZIP. La descarga probablemente falló."
+            echo "Contenido del archivo descargado:"
+            cat "$ZIP_FILE" # Muestra lo que se descargó para poder depurarlo
+            exit 1
+          fi
+          
+          echo "Archivo ZIP verificado. Extrayendo..."
+          mkdir "$DEST_DIR"
+          unzip -q "$ZIP_FILE" -d "$DEST_DIR" --strip-components=1
+          
+          echo "Limpiando archivo ZIP..."
+          rm "$ZIP_FILE"
+          
+          echo "✅ SDK de Java Card listo en la carpeta '$DEST_DIR'."
+      # --- FIN DE LA SOLUCIÓN FINAL ---
+
+      # Paso 4: Compilar el código Java
       - name: Compilar el código Java
         run: |
           set -e
           JAVA_FILE="HybridDemonAppletV19.java"
           if [ ! -f "$JAVA_FILE" ]; then
-            echo "::error::Archivo no encontrado: $JAVA_FILE"
+            echo "::error::Archivo Java no encontrado: $JAVA_FILE"
             exit 1
           fi
           javac -g -cp ./jcsdk/api_export_files/api_classic.jar "$JAVA_FILE"
-          echo "Compilación exitosa."
+          echo "✅ Compilación exitosa."
 
-      # Paso 5: Convertir a .cap para cada AID (con script mejorado)
+      # Paso 5: Convertir a .cap para cada AID
       - name: Convertir a .cap para cada tipo de tarjeta
         run: |
           set -e
@@ -82,7 +97,7 @@ jobs:
               -o "${CLASS_NAME}-${CARD_NAME}.cap" \
               "$PACKAGE_AID" 1.0
           done
-          echo "Todos los archivos .cap se han generado correctamente."
+          echo "✅ Todos los archivos .cap se han generado correctamente."
 
       # Paso 6: Guardar los artefactos generados
       - name: Subir todos los artefactos .cap
