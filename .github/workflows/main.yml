@@ -1,87 +1,67 @@
-# Nombre del workflow que verás en la pestaña Actions
-name: Compilar Applet para Múltiples AIDs
+# Nombre del Workflow de GitHub Actions
+name: Compilar Applet de Java Card
 
+# Disparadores: Cuándo se ejecutará este workflow
 on:
+  # Se ejecuta cada vez que haces un "push" a la rama "main"
   push:
     branches: [ "main" ]
+  # También permite ejecutarlo manualmente desde la pestaña "Actions" en GitHub
   workflow_dispatch:
 
+# Definición de los trabajos (jobs) que se ejecutarán
 jobs:
-  build-and-convert:
+  build:
+    # El tipo de máquina virtual donde se ejecutará el trabajo
     runs-on: ubuntu-latest
-    
-    permissions:
-      contents: read
 
     steps:
-      # Paso 1: Clonar tu repositorio (que incluye la carpeta jcsdk)
-      - name: Clonar el repositorio principal
+      # 1. Descargar el código de tu repositorio
+      - name: Clonar Repositorio
         uses: actions/checkout@v4
 
-      # Paso 2: Instalar el Kit de Desarrollo de Java (JDK)
-      - name: Instalar Java JDK 11
+      # 2. Configurar el entorno de Java (JDK 8 es el más compatible con estas herramientas)
+      - name: Configurar Java JDK 8
         uses: actions/setup-java@v4
         with:
-          java-version: '11'
+          java-version: '8'
           distribution: 'temurin'
 
-      # Paso 3: Compilar el código Java (con Classpath Dinámico)
-      - name: Compilar el código Java
+      # 3. Construir el Classpath dinámicamente
+      #    Este paso busca TODOS los archivos .jar dentro de jcsdk/lib y los une en una
+      #    sola línea, que es exactamente lo que el compilador necesita.
+      - name: Preparar Classpath para la compilación
+        id: set_classpath
         run: |
-          set -e
-          JAVA_FILE="HybridDemonAppletV19.java"
-          
-          # --- INICIO DE LA CORRECCIÓN ---
-          # Construimos dinámicamente el classpath buscando todos los archivos .jar
-          # en la carpeta lib y uniéndolos con el separador ':'
-          JARS=$(find ./jcsdk/lib -name "*.jar" | tr '\n' ':')
-          CP=${JARS%:} # Eliminar el último ':' sobrante
-          # --- FIN DE LA CORRECCIÓN ---
+          echo "CLASSPATH_VALUE=$(find jcsdk/lib -name "*.jar" | tr '\n' ':')" >> $GITHUB_ENV
 
-          echo "Usando el siguiente Classpath para compilar: $CP"
-          
-          # Se añade -source y -target para eliminar la advertencia de versión
-          javac -g -source 7 -target 7 -cp "$CP" "$JAVA_FILE"
-          
-          echo "✅ Compilación exitosa."
-
-      # Paso 4: Convertir a .cap para cada AID
-      - name: Convertir a .cap para cada tipo de tarjeta
+      # 4. Compilar el código Java a .class
+      #    Usa el classpath del paso anterior para encontrar todas las librerías de Java Card.
+      - name: Compilar Código Java con Javac
         run: |
-          set -e
-          CLASS_NAME="HybridDemonAppletV19"
-          declare -A AIDS
-          AIDS["Visa"]="A0000000031010"
-          AIDS["VisaElectron"]="A0000000032010"
-          AIDS["Mastercard"]="A0000000041010"
-          AIDS["Maestro"]="A0000000043060"
-          AIDS["AmericanExpress"]="A00000002501"
-          AIDS["DiscoverDiners"]="A0000001523010"
-          AIDS["UnionPay"]="A0000003330101"
+          echo "Usando el siguiente Classpath para compilar: ${{ env.CLASSPATH_VALUE }}"
+          mkdir -p build/classes
+          javac -g -d build/classes -cp "${{ env.CLASSPATH_VALUE }}" HybridDemonAppletV19.java
 
-          # Construimos el classpath para el converter también
-          JARS=$(find ./jcsdk/lib -name "*.jar" | tr '\n' ':')
-          CP=${JARS%:}
+      # 5. Convertir los archivos .class a un archivo .cap
+      #    Este es el paso final que crea el applet instalable.
+      #    IMPORTANTE: Revisa el AID y el nombre de la clase si los cambias en el futuro.
+      - name: Convertir a formato CAP con la herramienta Converter
+        run: |
+          java -cp "${{ env.CLASSPATH_VALUE }}" com.sun.javacard.converter.Converter \
+            -d build \
+            -classdir build/classes \
+            -exportpath jcsdk/api_export_files \
+            -applet 0xA0:0x00:0x00:0x00:0x62:0x03:0x01:0x0C:0x01 HybridDemonAppletV19 \
+            -pkgName com.yourcompany.hybriddemon \
+            -pkgVersion 1.0 \
+            0xA0:0x00:0x00:0x00:0x62:0x03:0x01:0x0C \
+            1.0
 
-          for CARD_NAME in "${!AIDS[@]}"; do
-            RAW_AID=${AIDS[$CARD_NAME]}
-            PACKAGE_AID=$(echo "$RAW_AID" | sed 's/../&:/g;s/:$//' | sed 's/^/0x/;s/:/:0x/g')
-            APPLET_AID="${PACKAGE_AID}:0x01"
-            echo "--- Procesando $CARD_NAME ---"
-
-            # El classpath del converter ahora también es dinámico e incluye el directorio actual ('.')
-            java -cp "$CP:." -jar ./jcsdk/bin/converter.jar \
-              -classdir . \
-              -applet "$APPLET_AID" "$CLASS_NAME" \
-              -exportpath ./jcsdk/api_export_files \
-              -o "${CLASS_NAME}-${CARD_NAME}.cap" \
-              "$PACKAGE_AID" 1.0
-          done
-          echo "✅ Todos los archivos .cap se han generado correctamente."
-
-      # Paso 5: Guardar los artefactos generados
-      - name: Subir todos los artefactos .cap
+      # 6. Subir el archivo .cap como un "artefacto"
+      #    Esto te permitirá descargar el resultado final desde la página del workflow.
+      - name: Subir Artefacto (.cap file)
         uses: actions/upload-artifact@v4
         with:
-          name: Archivos-CAP-Multiples
-          path: '*.cap'
+          name: Applet-CAP-File
+          path: build/com/yourcompany/hybriddemon/javacard/HybridDemonAppletV19.cap
