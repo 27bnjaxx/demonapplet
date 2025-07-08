@@ -1,0 +1,252 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
+-->
+
+<!--
+-->
+<project name="Java Card 3.0 Classic Edition Samples "
+         default="all"
+         basedir=".">
+    <!-- import the common file, which has taskdefs and required dirs -->
+    <import file="../../build_common.xml" />
+
+    <!--
+    Sample directory is the sample name.
+    All files (cap, jca, scr, exp) will be generated in build folder with this name
+    -->
+    <basename file="${basedir}" property="sample.name" />
+
+    <!-- -->
+    <target name="clean">
+        <delete dir="./build" />
+    </target>
+
+    <!-- -->
+    <target name="init">
+        <mkdir dir="./build/classes" />
+    </target>
+
+    <!-- -->
+    <target name="compile_applet" depends="init">
+        <pathconvert property="boot_classpath" refid="jc_jars"/>
+        <javac srcdir="./src"
+               destdir="./build/classes"
+               source="7"
+               target="7"
+               debug="yes"
+               includeantruntime="no"
+               bootclasspath="${boot_classpath}">
+        </javac>
+    </target>
+
+    <!-- -->
+    <target name="convert_applet" depends="compile_applet">
+        <convert dir="./build/classes" Configfile="c.opt">
+	            <classpath refid="jc_tools_jars"/>
+	        </convert>
+	        <copy todir="./build" flatten="true">
+	            <fileset dir="./build/classes">
+	                <include name="**/*.cap" />
+	                <include name="**/*.jca" />
+	                <include name="**/*.exp" />
+	            </fileset>
+	            <regexpmapper from="(.*)\.(.*)"
+	                          to="${sample.name}.\2"
+	                          casesensitive="yes" />
+        </copy>
+        
+        <convert dir="./build/classes" Configfile="a.opt">
+		            <classpath refid="jc_tools_jars" />            
+		        </convert>
+		        <copy todir="./build" flatten="true">
+		            <fileset dir="./build/classes">
+		                <include name="**/*.cap" />
+		                <include name="**/*.jca" />
+		                <include name="**/*.exp" />
+		            </fileset>
+		            <regexpmapper from="(.*)\.(.*)"
+		                          to="${sample.name}.\2"
+		                          casesensitive="yes" />
+	        </copy>
+	        
+	        <convert dir="./build/classes" Configfile="b.opt">
+		            <classpath refid="jc_tools_jars" />            
+		        </convert>
+		        <copy todir="./build" flatten="true">
+		            <fileset dir="./build/classes">
+		                <include name="**/*.cap" />
+		                <include name="**/*.jca" />
+		                <include name="**/*.exp" />
+		            </fileset>
+		            <regexpmapper from="(.*)\.(.*)"
+		                          to="${sample.name}.\2"
+		                          casesensitive="yes" />
+	        </copy>
+                            
+    </target>
+	
+	<!-- -->
+    <target name="verify_applet" depends="convert_applet">
+        <verifycap capfile="./build/classes/com/sun/jcclassic/samples/odsample/libPackageC/javacard/libPackageC.cap" outfile="./build/digest1.txt">
+			<exportfiles dir="${jc.home}/api_export_files" includes="**/*.exp"/>
+			<exportfiles dir="./build/classes" includes="**/*.exp"/>
+            <classpath refid="jc_tools_jars" />
+        </verifycap>
+		<verifycap capfile="./build/classes/com/sun/jcclassic/samples/odsample/packageA/javacard/packageA.cap" outfile="./build/digest2.txt">
+			<exportfiles dir="${jc.home}/api_export_files" includes="**/*.exp"/>
+			<exportfiles dir="./build/classes" includes="**/*.exp"/>
+            <classpath refid="jc_tools_jars" />
+        </verifycap>
+		<verifycap capfile="./build/classes/com/sun/jcclassic/samples/odsample/packageB/javacard/packageB.cap" outfile="./build/digest3.txt">
+			<exportfiles dir="${jc.home}/api_export_files" includes="**/*.exp"/>
+			<exportfiles dir="./build/classes" includes="**/*.exp"/>
+            <classpath refid="jc_tools_jars" />
+        </verifycap>
+    </target>
+
+    <!-- -->
+    <target name="generate_script" depends="verify_applet">
+        
+        <scriptgen capfile="./build/classes/com/sun/jcclassic/samples/odsample/libPackageC/javacard/libPackageC.cap"
+		                   outfile="./build/scr1.txt"
+						   hashfile="./build/digest1.txt">
+		            <classpath refid="jc_tools_jars" />
+        </scriptgen>        
+        <scriptgen capfile="./build/classes/com/sun/jcclassic/samples/odsample/packageA/javacard/packageA.cap"
+                   outfile="./build/scr2.txt"
+				   hashfile="./build/digest2.txt">
+            <classpath refid="jc_tools_jars" />
+        </scriptgen>
+        <scriptgen capfile="./build/classes/com/sun/jcclassic/samples/odsample/packageB/javacard/packageB.cap"
+	                   outfile="./build/scr3.txt"
+					   hashfile="./build/digest3.txt">
+	            <classpath refid="jc_tools_jars" />
+        </scriptgen>
+        
+        <concat destfile="./build/scr.txt">
+	            <filelist dir="./build" files="scr1.txt" />
+	            <filelist dir="./build" files="scr2.txt" />
+	            <filelist dir="./build" files="scr3.txt" />
+        </concat>
+        
+        
+        <concat destfile="./build/${sample.name}1-1.scr">
+            <filelist dir="../../" files="powerup.scr" />
+            <filelist dir="./build" files="scr.txt" />
+            <filelist dir="../" files="od1-1.scr" />
+            <filelist dir="../../" files="powerdown.scr" />
+        </concat>
+        
+        <concat destfile="./build/${sample.name}1-2.scr">
+	            <filelist dir="../../" files="powerup.scr" />
+	            <filelist dir="./build" files="scr.txt" />
+	            <filelist dir="../" files="od1-2.scr" />
+	            <filelist dir="../../" files="powerdown.scr" />
+        </concat>
+        
+        <concat destfile="./build/${sample.name}1-3.scr">
+	            <filelist dir="../../" files="powerup.scr" />
+	            <filelist dir="./build" files="scr.txt" />
+	            <filelist dir="../" files="od1-3.scr" />
+	            <filelist dir="../../" files="powerdown.scr" />
+        </concat>
+        
+        <concat destfile="./build/${sample.name}2.scr">
+	            <filelist dir="../../" files="powerup.scr" />
+	            <filelist dir="./build" files="scr.txt" />
+	            <filelist dir="../" files="od2.scr" />
+	            <filelist dir="../../" files="powerdown.scr" />
+        </concat>
+        <concat destfile="./build/${sample.name}2-2.scr">
+		            <filelist dir="../../" files="powerup.scr" />
+		            <filelist dir="./build" files="scr.txt" />
+		            <filelist dir="../" files="od2-2.scr" />
+		            <filelist dir="../../" files="powerdown.scr" />
+        </concat>
+        <concat destfile="./build/${sample.name}3.scr">
+	            <filelist dir="../../" files="powerup.scr" />
+	            <filelist dir="./build" files="scr.txt" />
+	            <filelist dir="../" files="od3.scr" />
+	            <filelist dir="../../" files="powerdown.scr" />
+        </concat>
+        <concat destfile="./build/${sample.name}3-2.scr">
+	            <filelist dir="../../" files="powerup.scr" />
+	            <filelist dir="./build" files="scr.txt" />
+	            <filelist dir="../" files="od3-2.scr" />
+	            <filelist dir="../../" files="powerdown.scr" />
+        </concat>        
+        <delete>
+            <fileset dir="./build" includes="*.cap, *.jca, *.exp, *.txt" />
+        </delete>
+    </target>
+    
+    <target name="run1-1" depends="generate_script">
+                <java classname="com.sun.javacard.apdutool.Main" output="${redirect.output}">
+                    <arg value="-nobanner"/>
+                    <arg value="-noatr"/>
+                    <arg value="build/${sample.name}1-1.scr"/>
+                <classpath refid="jc_tools_jars" />
+                </java>
+   </target>
+   
+   <target name="run1-2" depends="generate_script">
+                   <java classname="com.sun.javacard.apdutool.Main" output="${redirect.output}">
+                       <arg value="-nobanner"/>
+		       <arg value="-noatr"/>            
+                       <arg value="build/${sample.name}1-2.scr"/>
+                   <classpath refid="jc_tools_jars" />
+                   </java>
+   </target>
+    
+
+   <target name="run1-3" depends="generate_script">
+                   <java classname="com.sun.javacard.apdutool.Main" output="${redirect.output}">
+                       <arg value="-nobanner"/>
+		       <arg value="-noatr"/>            
+                       <arg value="build/${sample.name}1-3.scr"/>
+                   <classpath refid="jc_tools_jars" />
+                   </java>
+   </target>
+   
+   <target name="run2" depends="generate_script">
+                      <java classname="com.sun.javacard.apdutool.Main" output="${redirect.output}">
+                          <arg value="-nobanner"/>
+			  <arg value="-noatr"/>
+                          <arg value="build/${sample.name}2.scr"/>
+                      <classpath refid="jc_tools_jars" />
+                      </java>
+   </target>
+   
+   <target name="run2-2" depends="generate_script">
+                      <java classname="com.sun.javacard.apdutool.Main" output="${redirect.output}">
+                          <arg value="-nobanner"/>
+			  <arg value="-noatr"/>
+                          <arg value="build/${sample.name}2-2.scr"/>
+                      <classpath refid="jc_tools_jars" />
+                      </java>
+   </target>
+   
+   <target name="run3" depends="generate_script">
+                      <java classname="com.sun.javacard.apdutool.Main" output="${redirect.output}">
+			      <arg value="-nobanner"/>
+			      <arg value="-noatr"/>
+			      <arg value="build/${sample.name}3.scr"/>
+			      <classpath refid="jc_tools_jars" />
+                      </java>
+   </target>
+   
+   <target name="run3-2" depends="generate_script">
+                      <java classname="com.sun.javacard.apdutool.Main" output="${redirect.output}">
+                	      <arg value="-nobanner"/>
+			      <arg value="-noatr"/>		
+                	      <arg value="build/${sample.name}3-2.scr"/>
+                      	      <classpath refid="jc_tools_jars" />
+                      </java>
+   </target>
+   
+
+    <!-- -->
+    <target name="all" depends="generate_script" />
+
+</project>
