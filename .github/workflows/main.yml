@@ -14,7 +14,7 @@ jobs:
       contents: read
 
     steps:
-      # Paso 1: Clonar tu repositorio (que ya incluye la carpeta jcsdk)
+      # Paso 1: Clonar tu repositorio (que incluye la carpeta jcsdk)
       - name: Clonar el repositorio principal
         uses: actions/checkout@v4
 
@@ -25,17 +25,24 @@ jobs:
           java-version: '11'
           distribution: 'temurin'
 
-      # Paso 3: Compilar el código Java usando el SDK local
+      # Paso 3: Compilar el código Java (con Classpath Dinámico)
       - name: Compilar el código Java
         run: |
           set -e
           JAVA_FILE="HybridDemonAppletV19.java"
-          if [ ! -f "$JAVA_FILE" ]; then
-            echo "::error::Archivo Java no encontrado: $JAVA_FILE"
-            exit 1
-          fi
-          # Esta ruta ahora es local y siempre existirá
-          javac -g -cp "./jcsdk/lib/*" "$JAVA_FILE"
+          
+          # --- INICIO DE LA CORRECCIÓN ---
+          # Construimos dinámicamente el classpath buscando todos los archivos .jar
+          # en la carpeta lib y uniéndolos con el separador ':'
+          JARS=$(find ./jcsdk/lib -name "*.jar" | tr '\n' ':')
+          CP=${JARS%:} # Eliminar el último ':' sobrante
+          # --- FIN DE LA CORRECCIÓN ---
+
+          echo "Usando el siguiente Classpath para compilar: $CP"
+          
+          # Se añade -source y -target para eliminar la advertencia de versión
+          javac -g -source 7 -target 7 -cp "$CP" "$JAVA_FILE"
+          
           echo "✅ Compilación exitosa."
 
       # Paso 4: Convertir a .cap para cada AID
@@ -52,12 +59,18 @@ jobs:
           AIDS["DiscoverDiners"]="A0000001523010"
           AIDS["UnionPay"]="A0000003330101"
 
+          # Construimos el classpath para el converter también
+          JARS=$(find ./jcsdk/lib -name "*.jar" | tr '\n' ':')
+          CP=${JARS%:}
+
           for CARD_NAME in "${!AIDS[@]}"; do
             RAW_AID=${AIDS[$CARD_NAME]}
             PACKAGE_AID=$(echo "$RAW_AID" | sed 's/../&:/g;s/:$//' | sed 's/^/0x/;s/:/:0x/g')
             APPLET_AID="${PACKAGE_AID}:0x01"
             echo "--- Procesando $CARD_NAME ---"
-            java -cp "./jcsdk/lib/*:." -jar ./jcsdk/bin/converter.jar \
+
+            # El classpath del converter ahora también es dinámico e incluye el directorio actual ('.')
+            java -cp "$CP:." -jar ./jcsdk/bin/converter.jar \
               -classdir . \
               -applet "$APPLET_AID" "$CLASS_NAME" \
               -exportpath ./jcsdk/api_export_files \
