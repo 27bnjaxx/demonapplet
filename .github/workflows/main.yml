@@ -14,7 +14,7 @@ jobs:
       contents: read
 
     steps:
-      # Paso 1: Clonar tu repositorio (que incluye la carpeta jcsdk)
+      # Paso 1: Clonar tu repositorio (que ya incluye la carpeta jcsdk)
       - name: Clonar el repositorio principal
         uses: actions/checkout@v4
 
@@ -25,35 +25,20 @@ jobs:
           java-version: '11'
           distribution: 'temurin'
 
-      # Paso 3: Verificar la estructura del SDK (Paso de diagnóstico)
-      - name: Verificar que la carpeta del SDK existe
-        run: |
-          echo "Verificando el contenido de la carpeta jcsdk/lib..."
-          if [ -d "jcsdk/lib" ]; then
-            ls -l jcsdk/lib
-          else
-            echo "::error:: La carpeta jcsdk/lib no existe o la estructura es incorrecta."
-            exit 1
-          fi
-
-      # --- INICIO DE LA CORRECCIÓN ---
-      # Paso 4: Compilar el código Java (con la ruta a librerías corregida)
+      # Paso 3: Compilar el código Java usando el SDK local
       - name: Compilar el código Java
         run: |
           set -e
           JAVA_FILE="HybridDemonAppletV19.java"
-          
-          # Construimos el CLASSPATH para incluir las librerías necesarias de forma explícita.
-          # El separador en Linux es ':'
-          CLASSPATH="./jcsdk/lib/api_classic.jar:./jcsdk/lib/api_common.jar"
-          
-          echo "Compilando con el classpath: $CLASSPATH"
-          javac -g -cp "$CLASSPATH" "$JAVA_FILE"
-          
+          if [ ! -f "$JAVA_FILE" ]; then
+            echo "::error::Archivo Java no encontrado: $JAVA_FILE"
+            exit 1
+          fi
+          # Esta ruta ahora es local y siempre existirá
+          javac -g -cp "./jcsdk/lib/*" "$JAVA_FILE"
           echo "✅ Compilación exitosa."
-      # --- FIN DE LA CORRECCIÓN ---
 
-      # Paso 5: Convertir a .cap para cada AID
+      # Paso 4: Convertir a .cap para cada AID
       - name: Convertir a .cap para cada tipo de tarjeta
         run: |
           set -e
@@ -72,8 +57,6 @@ jobs:
             PACKAGE_AID=$(echo "$RAW_AID" | sed 's/../&:/g;s/:$//' | sed 's/^/0x/;s/:/:0x/g')
             APPLET_AID="${PACKAGE_AID}:0x01"
             echo "--- Procesando $CARD_NAME ---"
-            
-            # El classpath del converter también debe ser corregido
             java -cp "./jcsdk/lib/*:." -jar ./jcsdk/bin/converter.jar \
               -classdir . \
               -applet "$APPLET_AID" "$CLASS_NAME" \
@@ -83,7 +66,7 @@ jobs:
           done
           echo "✅ Todos los archivos .cap se han generado correctamente."
 
-      # Paso 6: Guardar los artefactos generados
+      # Paso 5: Guardar los artefactos generados
       - name: Subir todos los artefactos .cap
         uses: actions/upload-artifact@v4
         with:
