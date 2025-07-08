@@ -10,9 +10,9 @@ jobs:
   build-and-convert:
     runs-on: ubuntu-latest
     
-    # Solicitar permisos para que GITHUB_TOKEN funcione.
+    # Solicitar permisos para que GITHUB_TOKEN funcione en nuestro propio repositorio.
     permissions:
-      contents: read # Permiso para que actions/checkout pueda clonar tu repositorio.
+      contents: read
 
     steps:
       # Paso 1: Clonar tu repositorio principal.
@@ -26,14 +26,9 @@ jobs:
           java-version: '11'
           distribution: 'temurin'
 
-      # Paso 3: Clonar el SDK de Java Card público.
-      # No se necesita ningún token al ser un repositorio público.
+      # Paso 3: Clonar el SDK (Método directo y a prueba de permisos)
       - name: Clonar Java Card SDK
-        uses: actions/checkout@v4
-        with:
-          repository: 'ph4r05/javacard-sdk-305'
-          path: 'jcsdk'
-          fetch-depth: 1
+        run: git -c credential.helper="" clone --depth 1 https://github.com/ph4r05/javacard-sdk-305.git jcsdk
 
       # Paso 4: Compilar el código Java (con verificación)
       - name: Compilar el código Java
