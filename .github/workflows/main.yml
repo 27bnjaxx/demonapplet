@@ -10,11 +10,12 @@ jobs:
   build-and-convert:
     runs-on: ubuntu-latest
     
+    # Solicitar permisos para que GITHUB_TOKEN funcione en nuestro propio repositorio.
     permissions:
       contents: read
 
     steps:
-      # Paso 1: Clonar tu repositorio principal
+      # Paso 1: Clonar tu repositorio principal.
       - name: Clonar el repositorio principal
         uses: actions/checkout@v4
 
@@ -25,27 +26,24 @@ jobs:
           java-version: '11'
           distribution: 'temurin'
 
-      # --- INICIO DE LA SOLUCIÓN FINAL ---
-      # Paso 3: Descargar y verificar el SDK (Método ultra robusto)
+      # Paso 3: Descargar y verificar el SDK (con la URL corregida)
       - name: Descargar, verificar y extraer Java Card SDK
         run: |
           set -e # Detener el script inmediatamente si un comando falla
           
-          URL="https://github.com/ph4r05/javacard-sdk-305/archive/refs/heads/master.zip"
+          # --- CORRECCIÓN FINAL: Se usa la rama 'dev' que es la correcta ---
+          URL="https://github.com/ph4r05/javacard-sdk-305/archive/refs/heads/dev.zip"
           ZIP_FILE="jcsdk.zip"
           DEST_DIR="jcsdk"
 
           echo "Descargando SDK desde $URL..."
           # Usamos --fail para que curl falle si el servidor devuelve un error (ej. 404)
-          # Usamos -L para seguir redirecciones
           curl --fail -L -o "$ZIP_FILE" "$URL"
 
           echo "Verificando que el archivo descargado sea un ZIP válido..."
           # 'file' identifica el tipo de archivo. Si no contiene "Zip archive data", fallamos.
           if ! file "$ZIP_FILE" | grep -q "Zip archive data"; then
             echo "::error:: El archivo descargado no es un ZIP. La descarga probablemente falló."
-            echo "Contenido del archivo descargado:"
-            cat "$ZIP_FILE" # Muestra lo que se descargó para poder depurarlo
             exit 1
           fi
           
@@ -57,7 +55,6 @@ jobs:
           rm "$ZIP_FILE"
           
           echo "✅ SDK de Java Card listo en la carpeta '$DEST_DIR'."
-      # --- FIN DE LA SOLUCIÓN FINAL ---
 
       # Paso 4: Compilar el código Java
       - name: Compilar el código Java
