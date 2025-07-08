@@ -26,9 +26,23 @@ jobs:
           java-version: '11'
           distribution: 'temurin'
 
-      # Paso 3: Clonar el SDK (Método directo y a prueba de permisos)
-      - name: Clonar Java Card SDK
-        run: git -c credential.helper="" clone --depth 1 https://github.com/ph4r05/javacard-sdk-305.git jcsdk
+      # --- LA SOLUCIÓN DEFINITIVA ---
+      # Paso 3: Descargar el SDK como ZIP (evitando git por completo)
+      - name: Descargar y extraer Java Card SDK
+        run: |
+          # Usamos curl para descargar el archivo ZIP del repositorio
+          curl -L -o jcsdk.zip https://github.com/ph4r05/javacard-sdk-305/archive/refs/heads/master.zip
+          
+          # Creamos el directorio de destino
+          mkdir jcsdk
+          
+          # Descomprimimos el ZIP dentro del directorio, eliminando el primer nivel de carpetas del ZIP
+          unzip -q jcsdk.zip -d jcsdk --strip-components=1
+          
+          # Limpiamos el archivo ZIP descargado
+          rm jcsdk.zip
+          echo "SDK de Java Card descargado y extraído en la carpeta 'jcsdk'."
+      # --- FIN DE LA SOLUCIÓN ---
 
       # Paso 4: Compilar el código Java (con verificación)
       - name: Compilar el código Java
