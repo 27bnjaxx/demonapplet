@@ -15,7 +15,7 @@ jobs:
 
     steps:
       # Paso 1: Descargar el código de tu repositorio principal
-      - name: Clonar el repositorio
+      - name: Clonar el repositorio principal
         uses: actions/checkout@v4
 
       # Paso 2: Instalar el Kit de Desarrollo de Java (JDK)
@@ -25,23 +25,43 @@ jobs:
           java-version: '11'
           distribution: 'temurin'
 
-      # --- INICIO DE LA CORRECCIÓN DEFINITIVA ---
-      # Paso 3: Clonar Java Card SDK (Método directo)
-      - name: Clonar Java Card SDK con Git
+      # Paso 3: Clonar el SDK de Java Card (Método directo y robusto)
+      - name: Clonar Java Card SDK
         run: git clone --depth 1 https://github.com/ph4r05/javacard-sdk-305.git jcsdk
-      # --- FIN DE LA CORRECCIÓN DEFINITIVA ---
 
-      # Paso 4: Compilar el archivo .java
+      # Paso 4: Compilar el código Java (con verificación)
       - name: Compilar el código Java
         run: |
-          JAVA_FILE_NAME="HybridDemonAppletV19.java"
-          echo "Compilando $JAVA_FILE_NAME..."
-          javac -g -cp ./jcsdk/api_export_files/api_classic.jar $JAVA_FILE_NAME
+          # --- CONFIGURACIÓN ---
+          JAVA_FILE="HybridDemonAppletV19.java"
+          # --- FIN CONFIGURACIÓN ---
 
-      # Paso 5: Convertir a .cap para cada AID de la lista
+          echo "Buscando el archivo $JAVA_FILE..."
+          if [ ! -f "$JAVA_FILE" ]; then
+            echo "::error::Archivo no encontrado: $JAVA_FILE. Asegúrate de que el archivo exista en la raíz del repositorio."
+            exit 1
+          fi
+          
+          echo "Compilando $JAVA_FILE..."
+          javac -g -cp ./jcsdk/api_export_files/api_classic.jar "$JAVA_FILE"
+          
+          # Verificar que la compilación fue exitosa
+          CLASS_NAME=$(basename "$JAVA_FILE" .java)
+          if [ ! -f "$CLASS_NAME.class" ]; then
+            echo "::error::La compilación falló. No se generó el archivo $CLASS_NAME.class."
+            exit 1
+          fi
+          
+          echo "Compilación exitosa."
+
+      # Paso 5: Convertir a .cap para cada AID (con script mejorado)
       - name: Convertir a .cap para cada tipo de tarjeta
         run: |
-          CLASS_NAME=$(basename "HybridDemonAppletV19.java" .java)
+          set -e # Detener el script si un comando falla
+          
+          CLASS_NAME="HybridDemonAppletV19"
+          
+          # Definir AIDs en un formato más legible
           declare -A AIDS
           AIDS["Visa"]="A0000000031010"
           AIDS["VisaElectron"]="A0000000032010"
@@ -51,20 +71,28 @@ jobs:
           AIDS["DiscoverDiners"]="A0000001523010"
           AIDS["UnionPay"]="A0000003330101"
 
+          # Ruta al convertidor para más claridad
+          CONVERTER_JAR="./jcsdk/bin/converter.jar"
+
           for CARD_NAME in "${!AIDS[@]}"; do
             RAW_AID=${AIDS[$CARD_NAME]}
-            PACKAGE_AID=$(echo $RAW_AID | sed 's/../&:/g;s/:$//' | sed 's/^/0x/;s/:/:0x/g')
+            # Formatear el AID para el paquete y el applet
+            PACKAGE_AID=$(echo "$RAW_AID" | sed 's/../&:/g;s/:$//' | sed 's/^/0x/;s/:/:0x/g')
             APPLET_AID="${PACKAGE_AID}:0x01"
-            echo "--- Procesando $CARD_NAME ---"
-            java -jar ./jcsdk/bin/converter.jar \
+            
+            echo "--- Procesando $CARD_NAME (AID: $APPLET_AID) ---"
+            
+            java -jar "$CONVERTER_JAR" \
               -classdir . \
-              -applet $APPLET_AID $CLASS_NAME \
+              -applet "$APPLET_AID" "$CLASS_NAME" \
               -exportpath ./jcsdk/api_export_files \
               -o "${CLASS_NAME}-${CARD_NAME}.cap" \
-              $PACKAGE_AID 1.0
+              "$PACKAGE_AID" 1.0
           done
+          
+          echo "Todos los archivos .cap se han generado correctamente."
 
-      # Paso 6: Guardar TODOS los archivos .cap generados
+      # Paso 6: Guardar los artefactos generados
       - name: Subir todos los artefactos .cap
         uses: actions/upload-artifact@v4
         with:
