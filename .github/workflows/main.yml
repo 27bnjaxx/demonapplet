@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Paso 1: Descargar el código de tu repositorio
+      # Paso 1: Descargar el código de tu repositorio principal
       - name: Clonar el repositorio
         uses: actions/checkout@v4
 
@@ -25,16 +25,15 @@ jobs:
           java-version: '11'
           distribution: 'temurin'
 
-      # --- INICIO DE LA CORRECCIÓN DEFINITIVA ---
-      # Paso 3: Instalar el Kit de Desarrollo de Java Card (Método Git Clone Optimizado)
-      - name: Clonar Java Card SDK con Git (Shallow)
-        run: |
-          # Clonamos solo el último estado del repositorio (--depth 1).
-          # Esto es más rápido y evita errores en entornos automáticos.
-          git clone --depth 1 https://github.com/ph4r05/javacard-sdk-305.git
-          # Movemos la carpeta clonada para que tenga el nombre que esperamos
-          mv javacard-sdk-305 jcsdk
-      # --- FIN DE LA CORRECCIÓN DEFINITIVA ---
+      # --- INICIO DE LA CORRECCIÓN ---
+      # Paso 3: Instalar el Kit de Desarrollo de Java Card (Método correcto)
+      - name: Clonar Java Card SDK
+        uses: actions/checkout@v4
+        with:
+          repository: 'ph4r05/javacard-sdk-305'
+          path: 'jcsdk' # Clona el repositorio directamente en la carpeta 'jcsdk'
+          depth: 1      # Realiza una clonación superficial (shallow clone)
+      # --- FIN DE LA CORRECCIÓN ---
 
       # Paso 4: Compilar el archivo .java
       - name: Compilar el código Java
