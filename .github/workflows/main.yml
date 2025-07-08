@@ -1,24 +1,24 @@
 # Nombre del workflow que verás en la pestaña Actions
 name: Compilar Applet para Múltiples AIDs
 
-# Esto hace que el workflow se ejecute cada vez que subes cambios
 on:
   push:
     branches: [ "main" ]
-  # También te permite ejecutarlo manualmente desde la pestaña Actions
   workflow_dispatch:
 
 jobs:
   build-and-convert:
-    # Usaremos una máquina virtual de Ubuntu para compilar
     runs-on: ubuntu-latest
+    
+    # SOLUCIÓN DEFINITIVA: Solicitar permisos para que GITHUB_TOKEN funcione.
+    permissions:
+      contents: read # Permiso para que actions/checkout pueda clonar tu repositorio.
 
     steps:
-      # Paso 1: Clonar tu repositorio principal (privado), proporcionando el token explícitamente
+      # Paso 1: Clonar tu repositorio principal. Ya no necesita "with: token" gracias
+      # a la sección de permisos de arriba.
       - name: Clonar el repositorio principal
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }} # <-- CORRECCIÓN FINAL
 
       # Paso 2: Instalar el Kit de Desarrollo de Java (JDK)
       - name: Instalar Java JDK 11
@@ -34,7 +34,7 @@ jobs:
           repository: 'ph4r05/javacard-sdk-305'
           path: 'jcsdk'
           fetch-depth: 1
-          token: '' # <-- Esto es correcto y se mantiene para evitar conflictos
+          token: '' # Se mantiene para asegurar un clon anónimo y evitar conflictos
 
       # Paso 4: Compilar el código Java (con verificación)
       - name: Compilar el código Java
