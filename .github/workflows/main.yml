@@ -26,11 +26,12 @@ jobs:
           distribution: 'temurin'
 
       # --- INICIO DE LA CORRECCIÓN DEFINITIVA ---
-      # Paso 3: Instalar el Kit de Desarrollo de Java Card (Método Git Clone)
-      - name: Clonar Java Card SDK con Git
+      # Paso 3: Instalar el Kit de Desarrollo de Java Card (Método Git Clone Optimizado)
+      - name: Clonar Java Card SDK con Git (Shallow)
         run: |
-          # Clonamos el repositorio completo. Esto es más confiable que descargar un ZIP.
-          git clone https://github.com/ph4r05/javacard-sdk-305.git
+          # Clonamos solo el último estado del repositorio (--depth 1).
+          # Esto es más rápido y evita errores en entornos automáticos.
+          git clone --depth 1 https://github.com/ph4r05/javacard-sdk-305.git
           # Movemos la carpeta clonada para que tenga el nombre que esperamos
           mv javacard-sdk-305 jcsdk
       # --- FIN DE LA CORRECCIÓN DEFINITIVA ---
