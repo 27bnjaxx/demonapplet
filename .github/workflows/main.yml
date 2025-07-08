@@ -14,7 +14,7 @@ jobs:
       contents: read
 
     steps:
-      # Paso 1: Clonar tu repositorio (que ahora incluye la carpeta jcsdk)
+      # Paso 1: Clonar tu repositorio principal
       - name: Clonar el repositorio principal
         uses: actions/checkout@v4
 
@@ -25,9 +25,21 @@ jobs:
           java-version: '11'
           distribution: 'temurin'
 
-      # EL PASO 3 DE DESCARGA SE HA ELIMINADO POR COMPLETO
+      # Paso 3: Descargar y extraer el SDK
+      - name: Descargar y extraer Java Card SDK
+        run: |
+          set -e
+          URL="https://github.com/ph4r05/javacard-sdk-305/archive/refs/heads/dev.zip"
+          ZIP_FILE="jcsdk.zip"
+          DEST_DIR="jcsdk"
+          curl --fail -L -o "$ZIP_FILE" "$URL"
+          mkdir "$DEST_DIR"
+          unzip -q "$ZIP_FILE" -d "$DEST_DIR" --strip-components=1
+          rm "$ZIP_FILE"
+          echo "✅ SDK de Java Card listo."
 
-      # Paso 4: Compilar el código Java usando el SDK local
+      # --- INICIO DE LA CORRECCIÓN FINAL ---
+      # Paso 4: Compilar el código Java (con la ruta a librerías corregida)
       - name: Compilar el código Java
         run: |
           set -e
@@ -36,9 +48,12 @@ jobs:
             echo "::error::Archivo Java no encontrado: $JAVA_FILE"
             exit 1
           fi
-          # Esta ruta ahora es local y siempre existirá
-          javac -g -cp ./jcsdk/api_export_files/api_classic.jar "$JAVA_FILE"
+          
+          # Se corrige la ruta en -cp para apuntar a la carpeta /lib
+          javac -g -cp "./jcsdk/lib/*" "$JAVA_FILE"
+          
           echo "✅ Compilación exitosa."
+      # --- FIN DE LA CORRECCIÓN FINAL ---
 
       # Paso 5: Convertir a .cap para cada AID
       - name: Convertir a .cap para cada tipo de tarjeta
