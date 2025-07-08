@@ -10,12 +10,11 @@ jobs:
   build-and-convert:
     runs-on: ubuntu-latest
     
-    # Solicitar permisos para que GITHUB_TOKEN funcione en nuestro propio repositorio.
     permissions:
       contents: read
 
     steps:
-      # Paso 1: Clonar tu repositorio principal.
+      # Paso 1: Clonar tu repositorio (que ahora incluye la carpeta jcsdk)
       - name: Clonar el repositorio principal
         uses: actions/checkout@v4
 
@@ -26,37 +25,9 @@ jobs:
           java-version: '11'
           distribution: 'temurin'
 
-      # Paso 3: Descargar y verificar el SDK (con la URL corregida)
-      - name: Descargar, verificar y extraer Java Card SDK
-        run: |
-          set -e # Detener el script inmediatamente si un comando falla
-          
-          # --- CORRECCIÓN FINAL: Se usa la rama 'dev' que es la correcta ---
-          URL="https://github.com/ph4r05/javacard-sdk-305/archive/refs/heads/dev.zip"
-          ZIP_FILE="jcsdk.zip"
-          DEST_DIR="jcsdk"
+      # EL PASO 3 DE DESCARGA SE HA ELIMINADO POR COMPLETO
 
-          echo "Descargando SDK desde $URL..."
-          # Usamos --fail para que curl falle si el servidor devuelve un error (ej. 404)
-          curl --fail -L -o "$ZIP_FILE" "$URL"
-
-          echo "Verificando que el archivo descargado sea un ZIP válido..."
-          # 'file' identifica el tipo de archivo. Si no contiene "Zip archive data", fallamos.
-          if ! file "$ZIP_FILE" | grep -q "Zip archive data"; then
-            echo "::error:: El archivo descargado no es un ZIP. La descarga probablemente falló."
-            exit 1
-          fi
-          
-          echo "Archivo ZIP verificado. Extrayendo..."
-          mkdir "$DEST_DIR"
-          unzip -q "$ZIP_FILE" -d "$DEST_DIR" --strip-components=1
-          
-          echo "Limpiando archivo ZIP..."
-          rm "$ZIP_FILE"
-          
-          echo "✅ SDK de Java Card listo en la carpeta '$DEST_DIR'."
-
-      # Paso 4: Compilar el código Java
+      # Paso 4: Compilar el código Java usando el SDK local
       - name: Compilar el código Java
         run: |
           set -e
@@ -65,6 +36,7 @@ jobs:
             echo "::error::Archivo Java no encontrado: $JAVA_FILE"
             exit 1
           fi
+          # Esta ruta ahora es local y siempre existirá
           javac -g -cp ./jcsdk/api_export_files/api_classic.jar "$JAVA_FILE"
           echo "✅ Compilación exitosa."
 
