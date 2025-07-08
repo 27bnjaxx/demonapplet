@@ -1,0 +1,85 @@
+# Nombre del workflow que verás en la pestaña Actions
+name: Compilar Applet para Múltiples AIDs
+
+# Esto hace que el workflow se ejecute cada vez que subes cambios
+on:
+  push:
+    branches: [ "main" ]
+  # También te permite ejecutarlo manualmente desde la pestaña Actions
+  workflow_dispatch:
+
+jobs:
+  build-and-convert:
+    # Usaremos una máquina virtual de Ubuntu para compilar
+    runs-on: ubuntu-latest
+
+    steps:
+      # Paso 1: Descargar el código de tu repositorio
+      - name: Clonar el repositorio
+        uses: actions/checkout@v4
+
+      # Paso 2: Instalar el Kit de Desarrollo de Java (JDK)
+      - name: Instalar Java JDK 11
+        uses: actions/setup-java@v4
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+
+      # Paso 3: Descargar el Kit de Desarrollo de Java Card (JC-SDK)
+      - name: Descargar Java Card SDK 3.0.5
+        run: |
+          wget https://github.com/bodymindarts/javacard-sdk-305u4/archive/refs/heads/master.zip
+          unzip master.zip
+          mv javacard-sdk-305u4-master jcsdk
+
+      # Paso 4: Compilar el archivo .java (solo se hace una vez)
+      - name: Compilar el código Java
+        run: |
+          # --- ¡CONFIGURACIÓN IMPORTANTE! ---
+          # Asegúrate de que este sea el nombre EXACTO de tu archivo .java
+          JAVA_FILE_NAME="HybridDemonAppletV19.java"
+          # --- FIN DE LA CONFIGURACIÓN ---
+          
+          echo "Compilando $JAVA_FILE_NAME..."
+          javac -g -cp ./jcsdk/api_export_files/api_classic.jar $JAVA_FILE_NAME
+
+      # Paso 5: Convertir a .cap para cada AID de la lista
+      - name: Convertir a .cap para cada tipo de tarjeta
+        run: |
+          CLASS_NAME=$(basename "HybridDemonAppletV19.java" .java)
+
+          # Lista de AIDs y nombres de tarjetas
+          declare -A AIDS
+          AIDS["Visa"]="A0000000031010"
+          AIDS["VisaElectron"]="A0000000032010"
+          AIDS["Mastercard"]="A0000000041010"
+          AIDS["Maestro"]="A0000000043060"
+          AIDS["AmericanExpress"]="A00000002501"
+          AIDS["DiscoverDiners"]="A0000001523010"
+          AIDS["UnionPay"]="A0000003330101"
+
+          # Bucle para crear un .cap por cada AID
+          for CARD_NAME in "${!AIDS[@]}"; do
+            RAW_AID=${AIDS[$CARD_NAME]}
+            # Formatear el AID con ":"
+            PACKAGE_AID=$(echo $RAW_AID | sed 's/../&:/g;s/:$//' | sed 's/^/0x/;s/:/:0x/g')
+            APPLET_AID="${PACKAGE_AID}:0x01"
+            
+            echo "--- Procesando $CARD_NAME ---"
+            echo "Package AID: $PACKAGE_AID"
+            echo "Applet AID: $APPLET_AID"
+            
+            java -jar ./jcsdk/bin/converter.jar \
+              -classdir . \
+              -applet $APPLET_AID $CLASS_NAME \
+              -exportpath ./jcsdk/api_export_files \
+              -o "${CLASS_NAME}-${CARD_NAME}.cap" \
+              $PACKAGE_AID 1.0
+          done
+
+      # Paso 6: Guardar TODOS los archivos .cap generados
+      - name: Subir todos los artefactos .cap
+        uses: actions/upload-artifact@v4
+        with:
+          name: Archivos-CAP-Multiples
+          path: '*.cap'
