@@ -25,21 +25,21 @@ jobs:
           java-version: '11'
           distribution: 'temurin'
 
-      # Paso 3: Descargar el Kit de Desarrollo de Java Card (JC-SDK)
+      # --- INICIO DE LA CORRECCIÓN ---
+      # Paso 3: Descargar el Kit de Desarrollo de Java Card (JC-SDK) DESDE UN NUEVO ENLACE
       - name: Descargar Java Card SDK 3.0.5
         run: |
-          wget https://github.com/bodymindarts/javacard-sdk-305u4/archive/refs/heads/master.zip
+          # Usamos un nuevo enlace funcional que sí existe
+          wget https://github.com/ph4r05/javacard-sdk-305/archive/refs/heads/master.zip
           unzip master.zip
-          mv javacard-sdk-305u4-master jcsdk
+          # El nombre de la carpeta descomprimida también cambia, lo ajustamos aquí
+          mv javacard-sdk-305-master jcsdk
+      # --- FIN DE LA CORRECCIÓN ---
 
       # Paso 4: Compilar el archivo .java (solo se hace una vez)
       - name: Compilar el código Java
         run: |
-          # --- ¡CONFIGURACIÓN IMPORTANTE! ---
-          # Asegúrate de que este sea el nombre EXACTO de tu archivo .java
           JAVA_FILE_NAME="HybridDemonAppletV19.java"
-          # --- FIN DE LA CONFIGURACIÓN ---
-          
           echo "Compilando $JAVA_FILE_NAME..."
           javac -g -cp ./jcsdk/api_export_files/api_classic.jar $JAVA_FILE_NAME
 
@@ -47,8 +47,6 @@ jobs:
       - name: Convertir a .cap para cada tipo de tarjeta
         run: |
           CLASS_NAME=$(basename "HybridDemonAppletV19.java" .java)
-
-          # Lista de AIDs y nombres de tarjetas
           declare -A AIDS
           AIDS["Visa"]="A0000000031010"
           AIDS["VisaElectron"]="A0000000032010"
@@ -58,17 +56,11 @@ jobs:
           AIDS["DiscoverDiners"]="A0000001523010"
           AIDS["UnionPay"]="A0000003330101"
 
-          # Bucle para crear un .cap por cada AID
           for CARD_NAME in "${!AIDS[@]}"; do
             RAW_AID=${AIDS[$CARD_NAME]}
-            # Formatear el AID con ":"
             PACKAGE_AID=$(echo $RAW_AID | sed 's/../&:/g;s/:$//' | sed 's/^/0x/;s/:/:0x/g')
             APPLET_AID="${PACKAGE_AID}:0x01"
-            
             echo "--- Procesando $CARD_NAME ---"
-            echo "Package AID: $PACKAGE_AID"
-            echo "Applet AID: $APPLET_AID"
-            
             java -jar ./jcsdk/bin/converter.jar \
               -classdir . \
               -applet $APPLET_AID $CLASS_NAME \
