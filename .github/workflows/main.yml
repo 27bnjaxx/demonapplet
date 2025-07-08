@@ -25,24 +25,25 @@ jobs:
           java-version: '11'
           distribution: 'temurin'
 
-      # --- INICIO DE LA CORRECCIÓN ---
-      # Paso 3: Instalar el Kit de Desarrollo de Java Card (Método Automático)
-      - name: Instalar Java Card SDK (Automático)
-        uses: Salamadin/setup-javacard@v1.1
-      # --- FIN DE LA CORRECCIÓN ---
+      # --- INICIO DE LA CORRECCIÓN DEFINITIVA ---
+      # Paso 3: Instalar el Kit de Desarrollo de Java Card (Método Git Clone)
+      - name: Clonar Java Card SDK con Git
+        run: |
+          # Clonamos el repositorio completo. Esto es más confiable que descargar un ZIP.
+          git clone https://github.com/ph4r05/javacard-sdk-305.git
+          # Movemos la carpeta clonada para que tenga el nombre que esperamos
+          mv javacard-sdk-305 jcsdk
+      # --- FIN DE LA CORRECCIÓN DEFINITIVA ---
 
       # Paso 4: Compilar el archivo .java
       - name: Compilar el código Java
-        shell: bash
         run: |
           JAVA_FILE_NAME="HybridDemonAppletV19.java"
           echo "Compilando $JAVA_FILE_NAME..."
-          # Usamos la variable de entorno $JC_HOME que crea el paso anterior
-          javac -g -cp $JC_HOME/api_export_files/api_classic.jar $JAVA_FILE_NAME
+          javac -g -cp ./jcsdk/api_export_files/api_classic.jar $JAVA_FILE_NAME
 
       # Paso 5: Convertir a .cap para cada AID de la lista
       - name: Convertir a .cap para cada tipo de tarjeta
-        shell: bash
         run: |
           CLASS_NAME=$(basename "HybridDemonAppletV19.java" .java)
           declare -A AIDS
@@ -59,11 +60,10 @@ jobs:
             PACKAGE_AID=$(echo $RAW_AID | sed 's/../&:/g;s/:$//' | sed 's/^/0x/;s/:/:0x/g')
             APPLET_AID="${PACKAGE_AID}:0x01"
             echo "--- Procesando $CARD_NAME ---"
-            # Usamos la variable de entorno $JC_HOME para encontrar el conversor
-            java -jar $JC_HOME/bin/converter.jar \
+            java -jar ./jcsdk/bin/converter.jar \
               -classdir . \
               -applet $APPLET_AID $CLASS_NAME \
-              -exportpath $JC_HOME/api_export_files \
+              -exportpath ./jcsdk/api_export_files \
               -o "${CLASS_NAME}-${CARD_NAME}.cap" \
               $PACKAGE_AID 1.0
           done
