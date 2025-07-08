@@ -25,15 +25,13 @@ jobs:
           java-version: '11'
           distribution: 'temurin'
 
-      # --- INICIO DE LA CORRECCIÓN ---
-      # Paso 3: Instalar el Kit de Desarrollo de Java Card (Método correcto)
+      # Paso 3: Instalar el Kit de Desarrollo de Java Card
       - name: Clonar Java Card SDK
         uses: actions/checkout@v4
         with:
           repository: 'ph4r05/javacard-sdk-305'
-          path: 'jcsdk' # Clona el repositorio directamente en la carpeta 'jcsdk'
-          depth: 1      # Realiza una clonación superficial (shallow clone)
-      # --- FIN DE LA CORRECCIÓN ---
+          path: 'jcsdk'
+          fetch-depth: 1 # <--- ESTA ES LA CORRECCIÓN
 
       # Paso 4: Compilar el archivo .java
       - name: Compilar el código Java
